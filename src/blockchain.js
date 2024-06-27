@@ -1,6 +1,9 @@
 // Import the SHA256 hash function from the crypto-js library
 const SHA256 = require("crypto-js/sha256");
+
+// Import the elliptic library for elliptic curve cryptography
 const EC = require("elliptic").ec;
+// Create a new elliptic curve instance using the secp256k1 curve
 const ec = new EC("secp256k1");
 
 // Define the Transaction class to represent a transaction in the blockchain
@@ -11,30 +14,41 @@ class Transaction {
     this.amount = amount; // Amount being transferred
   }
 
+  // Method to calculate the hash of the transaction
   calculateHash() {
     return SHA256(this.fromAddress + this.toAddress + this.amount).toString(); // Convert the hash to a string
   }
 
+  // Method to sign the transaction using the sender's private key
   signTransaction(signingKey) {
+    // Ensure that the signing key matches the sender's address
     if (signingKey.getPublic("hex") !== this.fromAddress) {
       throw new Error("You cannot sign transactions for other wallets");
     }
 
+    // Calculate the transaction hash
     const hashTX = this.calculateHash();
+    // Sign the hash using the private key
     const sig = signingKey.sign(hashTX, "base64");
+    // Store the signature in DER (Distinguished Encoding Rules) format
     this.signature = sig.toDER("hex");
   }
 
+  // Method to check if the transaction is valid
   isValid() {
+    // If the transaction is a mining reward, it is valid by default
     if (this.fromAddress === null) {
       return true;
     }
 
+    // Ensure that the transaction has a signature
     if (!this.signature || this.signature.length === 0) {
       throw new Error("No signature in this transaction");
     }
 
+    // Get the public key from the sender's address
     const publicKey = ec.keyFromPublic(this.fromAddress, "hex");
+    // Verify the transaction hash against the signature
     return publicKey.verify(this.calculateHash(), this.signature);
   }
 }
@@ -72,13 +86,16 @@ class Block {
     console.log("Block mined: " + this.hash); // Output the mined hash
   }
 
+  // Method to check if all transactions in the block are valid
   hasValidTransactions() {
+    // Iterate through each transaction in the block
     for (const tx of this.transactions) {
+      // If any transaction is invalid, return false
       if (!tx.isValid()) {
         return false;
       }
     }
-    return true;
+    return true; // All transactions are valid
   }
 }
 
@@ -123,15 +140,17 @@ class Blockchain {
 
   // Method to create a new transaction and add it to the list of pending transactions
   addTransaction(transaction) {
-
+    // Ensure that the transaction has from and to addresses
     if(!transaction.fromAddress || !transaction.toAddress){
       throw new Error("Transaction must include from and to addresses");
     }
 
+    // Ensure that the transaction is valid
     if(!transaction.isValid()){
       throw new Error ("Cannot add invalid transaction to chain");
     }
 
+    // Add the transaction to the list of pending transactions
     this.pendingTransactions.push(transaction);
   }
 
@@ -143,12 +162,14 @@ class Blockchain {
     for (const block of this.chain) {
       // Iterate through all transactions in each block
       for (const trans of block.transactions) {
+        // Deduct the amount if the address is the sender
         if (trans.fromAddress === address) {
-          balance -= trans.amount; // Deduct the amount if the address is the sender
+          balance -= trans.amount;
         }
 
+        // Add the amount if the address is the receiver
         if (trans.toAddress === address) {
-          balance += trans.amount; // Add the amount if the address is the receiver
+          balance += trans.amount;
         }
       }
     }
@@ -162,6 +183,7 @@ class Blockchain {
       const currentBlock = this.chain[i]; // Current block in the iteration
       const previousBlock = this.chain[i - 1]; // Previous block in the iteration
 
+      // Check if all transactions in the current block are valid
       if(!currentBlock.hasValidTransactions()){
         return false;
       }
@@ -180,5 +202,6 @@ class Blockchain {
   }
 }
 
+// Export the Blockchain and Transaction classes for use in other modules
 module.exports.Blockchain = Blockchain;
 module.exports.Transaction = Transaction;
