@@ -5,27 +5,38 @@ const SHA256 = require("crypto-js/sha256");
 class Block {
   // Constructor to initialize the block with index, timestamp, data, and previous hash
   constructor(index, timestamp, data, previousHash = "") {
-    this.index = index;               // Block index (position in the blockchain)
-    this.timestamp = timestamp;       // Timestamp of block creation
-    this.data = data;                 // Data stored in the block (e.g., transaction data)
+    this.index = index; // Block index (position in the blockchain)
+    this.timestamp = timestamp; // Timestamp of block creation
+    this.data = data; // Data stored in the block (e.g., transaction data)
     this.previousHash = previousHash; // Hash of the previous block in the chain
     this.hash = this.calculateHash(); // Hash of the current block
+    /* * A nonce (short for “number used once”) is a randomly generated value that serves as a security measure.
+     * It’s commonly used to prevent cross-site scripting (XSS) attacks.
+     * Specifically, nonces are employed to verify the legitimacy of certain requests, such as inline scripts or styles.*/
+    this.nonce = 0; // Initialize nonce to 0 for mining purposes
   }
 
   // Method to calculate the hash of the block based on its properties
   calculateHash() {
     return SHA256(
       this.index +
-      this.timestamp +
-      JSON.stringify(this.data) +
-      this.previousHash
+        this.timestamp +
+        JSON.stringify(this.data) +
+        this.previousHash +
+        this.nonce
     ).toString(); // Convert the hash to a string
   }
-  mineBlock(difficulty){
-    while(this.hash.substring(0, difficulty) !== Array(difficulty +1).join("0")){
-      this.hash = this.calculateHash();
+  
+  // Method to mine the block by finding a hash that meets the difficulty criteria
+  mineBlock(difficulty) {
+    // Loop until the hash starts with a number of zeroes equal to the difficulty
+    while (
+      this.hash.substring(0, difficulty) !== Array(difficulty + 1).join("0")
+    ) {
+      this.nonce++; // Increment nonce to change the hash
+      this.hash = this.calculateHash(); // Recalculate the hash with the new nonce
     }
-    console.log("Blcok mined: " + this.hash);
+    console.log("Block mined: " + this.hash); // Output the mined hash
   }
 }
 
@@ -34,6 +45,7 @@ class Blockchain {
   // Constructor to initialize the blockchain with a genesis block
   constructor() {
     this.chain = [this.createGenesisBlock()]; // Start the chain with the genesis block
+    this.diffculty = 4; // Set the difficulty level for mining blocks
   }
 
   // Method to create the genesis block (the first block in the chain)
@@ -49,15 +61,15 @@ class Blockchain {
   // Method to add a new block to the chain
   addBlock(newBlock) {
     newBlock.previousHash = this.getLatestBlock().hash; // Set the previous hash to the hash of the latest block
-    newBlock.hash = newBlock.calculateHash();           // Calculate the hash for the new block
-    this.chain.push(newBlock);                          // Add the new block to the chain
+    newBlock.mineBlock(this.diffculty); // Mine the new block with the current difficulty level
+    this.chain.push(newBlock); // Add the new block to the chain
   }
 
   // Method to check if the blockchain is valid
   isChainValid() {
     for (let i = 1; i < this.chain.length; i++) {
-      const currentBlock = this.chain[i];          // Current block in the iteration
-      const previousBlock = this.chain[i - 1];     // Previous block in the iteration
+      const currentBlock = this.chain[i]; // Current block in the iteration
+      const previousBlock = this.chain[i - 1]; // Previous block in the iteration
 
       // Check if the hash of the current block is still valid
       if (currentBlock.hash !== currentBlock.calculateHash()) {
@@ -76,11 +88,10 @@ class Blockchain {
 let driCoin = new Blockchain();
 
 // Add new blocks to the blockchain
+console.log("Mining block 1...");
 driCoin.addBlock(new Block(1, "27/06/2024", { amount: 4 }));
-driCoin.addBlock(new Block(2, "27/06/2024", { amount: 4 }));
 
-// Check if the blockchain is valid and print the result
-console.log('Is blockchain valid? ' + driCoin.isChainValid());
+console.log("Mining block 2...");
+driCoin.addBlock(new Block(2, "27/06/2024", { amount: 8 }));
 
-// Uncomment the line below to print the entire blockchain as a JSON string
-// console.log(JSON.stringify(driCoin, null, 4));
+
