@@ -1,13 +1,20 @@
 // Import the SHA256 hash function from the crypto-js library
 const SHA256 = require("crypto-js/sha256");
 
+class Transaction {
+  constructor(fromAddress, toAddress, amount) {
+    this.fromAddress = fromAddress;
+    this.toAddress = toAddress;
+    this.amount = amount;
+  }
+}
+
 // Define the Block class to represent each block in the blockchain
 class Block {
   // Constructor to initialize the block with index, timestamp, data, and previous hash
-  constructor(index, timestamp, data, previousHash = "") {
-    this.index = index; // Block index (position in the blockchain)
+  constructor(timestamp, transactions, previousHash = "") {
     this.timestamp = timestamp; // Timestamp of block creation
-    this.data = data; // Data stored in the block (e.g., transaction data)
+    this.transactions = transactions; // Transactions stored in the block
     this.previousHash = previousHash; // Hash of the previous block in the chain
     this.hash = this.calculateHash(); // Hash of the current block
     /* * A nonce (short for “number used once”) is a randomly generated value that serves as a security measure.
@@ -26,7 +33,7 @@ class Block {
         this.nonce
     ).toString(); // Convert the hash to a string
   }
-  
+
   // Method to mine the block by finding a hash that meets the difficulty criteria
   mineBlock(difficulty) {
     // Loop until the hash starts with a number of zeroes equal to the difficulty
@@ -46,11 +53,13 @@ class Blockchain {
   constructor() {
     this.chain = [this.createGenesisBlock()]; // Start the chain with the genesis block
     this.diffculty = 4; // Set the difficulty level for mining blocks
+    this.pendingTransactions = [];
+    this.miningReward = 100; // Set the reward for mining a block
   }
 
   // Method to create the genesis block (the first block in the chain)
   createGenesisBlock() {
-    return new Block(0, "26/06/2024", "Genesis Block", "0"); // Genesis block has index 0 and no previous hash
+    return new Block("26/06/2024", "Genesis Block", "0"); // Genesis block has index 0 and no previous hash
   }
 
   // Method to get the latest block in the chain
@@ -58,13 +67,38 @@ class Blockchain {
     return this.chain[this.chain.length - 1]; // Return the last block in the chain array
   }
 
-  // Method to add a new block to the chain
-  addBlock(newBlock) {
-    newBlock.previousHash = this.getLatestBlock().hash; // Set the previous hash to the hash of the latest block
-    newBlock.mineBlock(this.diffculty); // Mine the new block with the current difficulty level
-    this.chain.push(newBlock); // Add the new block to the chain
+  minePendingTransactions(miningRewardAddress) {
+    let block = new Block(Date.now(), this.pendingTransactions);
+    block.mineBlock(this.diffculty);
+
+    console.log("Block successfully mined!");
+    this.chain.push(block);
+
+    this.pendingTransactions = [
+      new Transaction(null, miningRewardAddress, this.miningReward),
+    ];
   }
 
+  createTransaction(transactions) {
+    this.pendingTransactions.push(transactions);
+  }
+
+  getBallanceOfAddress(address) {
+    let balance = 0;
+
+    for (const block of this.chain) {
+      for (const trans of block.transactions) {
+        if (trans.fromAddress === address) {
+          balance -= trans.amount;
+        }
+
+        if (trans.toAddress === address) {
+          balance += trans.amount;
+        }
+      }
+    }
+    return balance;
+  }
   // Method to check if the blockchain is valid
   isChainValid() {
     for (let i = 1; i < this.chain.length; i++) {
@@ -87,11 +121,15 @@ class Blockchain {
 // Create a new blockchain instance
 let driCoin = new Blockchain();
 
-// Add new blocks to the blockchain
-console.log("Mining block 1...");
-driCoin.addBlock(new Block(1, "27/06/2024", { amount: 4 }));
+driCoin.createTransaction(new Transaction("address1", "address2", 100));
+driCoin.createTransaction(new Transaction("address2", "address1", 50));
 
-console.log("Mining block 2...");
-driCoin.addBlock(new Block(2, "27/06/2024", { amount: 8 }));
+console.log("\n Starting the miner...");
+driCoin.minePendingTransactions("Filipova-adresa");
 
+console.log("\nBalance of Filip is ", driCoin.getBallanceOfAddress("Filipova-adresa"));
 
+console.log("\n Starting the miner again...");
+driCoin.minePendingTransactions("Filipova-adresa");
+
+console.log("\nBalance of Filip is ", driCoin.getBallanceOfAddress("Filipova-adresa"));
